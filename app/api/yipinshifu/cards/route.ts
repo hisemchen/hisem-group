@@ -1,3 +1,13 @@
+export async function HEAD() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return new Response(null, {
+    headers: {
+      'x-url': url?.slice(0, 30) || 'missing',
+      'x-key': key?.slice(0, 20) || 'missing',
+    },
+  });
+}
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
