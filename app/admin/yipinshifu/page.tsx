@@ -269,7 +269,22 @@ export default function YipinShifuAdminPage() {
                       <tr key={card.id} className="border-t border-white/10 text-stone-200">
                         <td className="px-4 py-3">{card.customer_name}</td>
                         <td className="px-4 py-3">第{card.card_no}张卡</td>
-                        <td className="px-4 py-3">{card.purchase_date}</td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="date"
+                            defaultValue={card.purchase_date}
+                            onBlur={async (e) => {
+                              if (e.target.value === card.purchase_date) return;
+                              await fetch(`/api/yipinshifu/cards/${card.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ purchase_date: e.target.value }),
+                              });
+                              await loadCards();
+                            }}
+                            className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
+                          />
+                        </td>
                         <td className="px-4 py-3">{card.payment_method}</td>
                         <td className="px-4 py-3">AED {Number(card.price_aed).toFixed(0)}</td>
                         <td className="px-4 py-3">{card.total_meals}</td>
