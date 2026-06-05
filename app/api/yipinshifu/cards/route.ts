@@ -1,17 +1,9 @@
-export async function HEAD() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return new Response(null, {
-    headers: {
-      'x-url': url?.slice(0, 30) || 'missing',
-      'x-key': key?.slice(0, 20) || 'missing',
-    },
-  });
-}
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET() {
+  console.log('KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 30));
+  
   const { data, error } = await supabaseAdmin
     .from('yipin_meal_cards')
     .select('*, records:yipin_meal_records(*)')
@@ -24,7 +16,6 @@ export async function GET() {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
   return NextResponse.json({ cards: data || [] });
 }
 
@@ -62,6 +53,5 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
   return NextResponse.json({ card: data });
 }
