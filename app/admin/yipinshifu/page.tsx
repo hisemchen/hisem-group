@@ -30,6 +30,7 @@ type ImportRow = {
   mealDate: string;
   matchedCardId: string;
   status: 'matched' | 'unmatched';
+  done?: boolean;
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -41,13 +42,13 @@ function cardStats(card: MealCard) {
 }
 
 function parseExcelDate(val: string | number): string {
-  // 处理 Excel 数字日期（如 46037）
   if (typeof val === 'number' || (!isNaN(Number(val)) && !String(val).includes('/'))) {
-    const excelEpoch = new Date(1899, 11, 30);
-    const date = new Date(excelEpoch.getTime() + Number(val) * 86400000);
-    return date.toISOString().slice(0, 10);
+    const date = new Date(Math.round((Number(val) - 25569) * 86400 * 1000));
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
-  // 处理文本格式 "15/01"
   const parts = String(val).trim().split('/');
   if (parts.length === 2) {
     const day = parts[0].padStart(2, '0');
@@ -69,6 +70,7 @@ export default function YipinShifuAdminPage() {
   const [mealType, setMealType] = useState('中餐');
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [rowPayments, setRowPayments] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadCards() {
@@ -141,29 +143,80 @@ export default function YipinShifuAdminPage() {
         const name = String(row['姓名'] || '').trim();
         const mealType = String(row['餐别'] || '').trim();
         const mealDate = parseExcelDate(row['日期']);
-
-        const matched = activeCards.find(
-          (card) => card.customer_name.trim() === name
-        );
-
+        const matched = activeCards.find((card) => card.customer_name.trim() === name);
         return {
           name,
           mealType,
           mealDate,
           matchedCardId: matched?.id || '',
           status: matched ? 'matched' : 'unmatched',
+          done: false,
         };
       });
 
       setImportRows(parsed);
+      setRowPayments({});
     };
     reader.readAsBinaryString(file);
   }
 
+  // 单条确认导入（已匹配）
+  async function confirmSingleRow(i: number) {
+    const row = importRows[i];
+    const response = await fetch('/api/yipinshifu/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        records: [{ cardId: row.matchedCardId, mealDate: row.mealDate, mealType: row.mealType }],
+      }),
+    });
+    if (response.ok) {
+      const updated = [...importRows];
+      updated[i] = { ...updated[i], done: true };
+      setImportRows(updated);
+      await loadCards();
+    }
+  }
+
+  // 未匹配：创建卡并扣卡
+  async function createAndDeduct(i: number) {
+    const row = importRows[i];
+    const payment = rowPayments[i] || 'Cash';
+
+    // 1. 创建卡
+    const createRes = await fetch('/api/yipinshifu/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: row.name,
+        purchaseDate: row.mealDate,
+        paymentMethod: payment,
+      }),
+    });
+    const createResult = await createRes.json();
+    if (!createRes.ok) { setMessage(createResult.error || '创建卡失败'); return; }
+
+    // 2. 扣卡
+    const deductRes = await fetch('/api/yipinshifu/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        records: [{ cardId: createResult.card.id, mealDate: row.mealDate, mealType: row.mealType }],
+      }),
+    });
+    if (deductRes.ok) {
+      const updated = [...importRows];
+      updated[i] = { ...updated[i], done: true, status: 'matched' };
+      setImportRows(updated);
+      await loadCards();
+    }
+  }
+
+  // 全部批量导入（已匹配且未完成）
   async function submitImport() {
     setImporting(true);
     setMessage('');
-    const toSubmit = importRows.filter((r) => r.matchedCardId);
+    const toSubmit = importRows.filter((r) => r.matchedCardId && !r.done);
     const response = await fetch('/api/yipinshifu/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -293,40 +346,70 @@ export default function YipinShifuAdminPage() {
                       <th className="px-4 py-2">餐别</th>
                       <th className="px-4 py-2">日期</th>
                       <th className="px-4 py-2">匹配餐卡</th>
-                      <th className="px-4 py-2">状态</th>
+                      <th className="px-4 py-2">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {importRows.map((row, i) => (
-                      <tr key={i} className="border-t border-white/10 text-stone-200">
+                      <tr key={i} className={`border-t border-white/10 ${row.done ? 'opacity-40' : 'text-stone-200'}`}>
                         <td className="px-4 py-2">{row.name}</td>
                         <td className="px-4 py-2">{row.mealType}</td>
                         <td className="px-4 py-2">{row.mealDate}</td>
                         <td className="px-4 py-2">
-                          <select
-                            value={row.matchedCardId}
-                            onChange={(e) => {
-                              const updated = [...importRows];
-                              updated[i] = { ...updated[i], matchedCardId: e.target.value, status: e.target.value ? 'matched' : 'unmatched' };
-                              setImportRows(updated);
-                            }}
-                            className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
-                          >
-                            <option value="">— 跳过 —</option>
-                            {activeCards.map((card) => {
-                              const stats = cardStats(card);
-                              return (
-                                <option key={card.id} value={card.id}>
-                                  {card.customer_name} 第{card.card_no}张卡 剩余{stats.left}次
-                                </option>
-                              );
-                            })}
-                          </select>
+                          {row.status === 'matched' ? (
+                            <select
+                              value={row.matchedCardId}
+                              onChange={(e) => {
+                                const updated = [...importRows];
+                                updated[i] = { ...updated[i], matchedCardId: e.target.value };
+                                setImportRows(updated);
+                              }}
+                              className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
+                              disabled={row.done}
+                            >
+                              {activeCards.map((card) => {
+                                const stats = cardStats(card);
+                                return (
+                                  <option key={card.id} value={card.id}>
+                                    {card.customer_name} 第{card.card_no}张卡 剩余{stats.left}次
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          ) : (
+                            <span className="text-red-400 text-xs">无匹配餐卡</span>
+                          )}
                         </td>
                         <td className="px-4 py-2">
-                          {row.status === 'matched'
-                            ? <span className="text-green-400">✓ 已匹配</span>
-                            : <span className="text-red-400">✗ 未匹配</span>}
+                          {row.done ? (
+                            <span className="text-green-400">✓ 已完成</span>
+                          ) : row.status === 'matched' ? (
+                            <button
+                              onClick={() => confirmSingleRow(i)}
+                              className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500"
+                            >
+                              确认导入
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={rowPayments[i] || 'Cash'}
+                                onChange={(e) => setRowPayments({ ...rowPayments, [i]: e.target.value })}
+                                className="border border-white/10 bg-stone-900 px-2 py-1 text-xs text-white outline-none focus:border-amber-200"
+                              >
+                                <option>Cash</option>
+                                <option>Card</option>
+                                <option>Transfer</option>
+                                <option>Tabby</option>
+                              </select>
+                              <button
+                                onClick={() => createAndDeduct(i)}
+                                className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white"
+                              >
+                                已付款·创建卡并扣卡
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -336,11 +419,11 @@ export default function YipinShifuAdminPage() {
               <div className="mt-4 flex gap-3">
                 <button onClick={submitImport} disabled={importing}
                   className="rounded-full bg-amber-200 px-5 py-2 text-sm font-semibold text-stone-950 transition hover:bg-white disabled:bg-stone-700 disabled:text-stone-400">
-                  {importing ? '导入中...' : `确认导入 ${importRows.filter(r => r.matchedCardId).length} 条`}
+                  {importing ? '导入中...' : `全部导入已匹配 ${importRows.filter(r => r.matchedCardId && !r.done).length} 条`}
                 </button>
                 <button onClick={() => { setImportRows([]); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                   className="rounded-full border border-white/20 px-5 py-2 text-sm transition hover:bg-white/10">
-                  取消
+                  清空
                 </button>
               </div>
             </div>
