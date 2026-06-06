@@ -647,16 +647,11 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{records.length} 次</td>
                         <td className="px-4 py-3">AED {total.toFixed(0)}</td>
                         <td className={`px-4 py-3 ${statusColor}`}>{statusText}</td>
-                        <td className="px-4 py-3 flex gap-2">
-                          <a href={`/admin/yipinshifu/statement/guest/${encodeURIComponent(name)}?status=paid`}
+                        <td className="px-4 py-3">
+                          <a href={`/admin/yipinshifu/statement/guest/${encodeURIComponent(name)}`}
                             target="_blank"
-                            className="rounded-full bg-green-800 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700">
-                            已付对账单
-                          </a>
-                          <a href={`/admin/yipinshifu/statement/guest/${encodeURIComponent(name)}?status=unpaid`}
-                            target="_blank"
-                            className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
-                            未付对账单
+                            className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600">
+                            生成对账单
                           </a>
                         </td>
                       </tr>
