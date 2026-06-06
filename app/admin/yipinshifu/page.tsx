@@ -380,7 +380,29 @@ export default function YipinShifuAdminPage() {
                               })}
                             </select>
                           ) : (
-                            <span className="text-red-400 text-xs">无匹配餐卡</span>
+                            <select
+                              value={row.matchedCardId}
+                              onChange={(e) => {
+                                const updated = [...importRows];
+                                updated[i] = {
+                                  ...updated[i],
+                                  matchedCardId: e.target.value,
+                                  status: e.target.value ? 'matched' : 'unmatched',
+                                };
+                                setImportRows(updated);
+                              }}
+                              className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
+                            >
+                              <option value="">— 无匹配，手动选择 —</option>
+                              {activeCards.map((card) => {
+                                const stats = cardStats(card);
+                                return (
+                                  <option key={card.id} value={card.id}>
+                                    {card.customer_name} 第{card.card_no}张卡 剩余{stats.left}次
+                                  </option>
+                                );
+                              })}
+                            </select>
                           )}
                         </td>
                         <td className="px-4 py-2">
