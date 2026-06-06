@@ -81,6 +81,7 @@ export default function YipinShifuAdminPage() {
   const [mealType, setMealType] = useState('中餐');
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [copyingRecord, setCopyingRecord] = useState<{ cardId: string; name: string; cardNo: number; mealDate: string; mealType: string } | null>(null);
   const [recordFilter, setRecordFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -761,15 +762,22 @@ export default function YipinShifuAdminPage() {
                     <td className="px-4 py-3">-{record.deducted}</td>
                     <td className="px-4 py-3">{left}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`确认删除 ${card.customer_name} 在 ${record.meal_date} ${record.meal_type} 的记录？`)) return;
-                          await fetch(`/api/yipinshifu/records/${record.id}`, { method: 'DELETE' });
-                          await loadCards();
-                        }}
-                        className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
-                        删除
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setCopyingRecord({ cardId: card.id, name: card.customer_name, cardNo: card.card_no, mealDate: record.meal_date, mealType: record.meal_type })}
+                          className="rounded-full bg-stone-600 px-3 py-1 text-xs font-semibold text-white hover:bg-stone-500">
+                          复制
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`确认删除 ${card.customer_name} 在 ${record.meal_date} ${record.meal_type} 的记录？`)) return;
+                            await fetch(`/api/yipinshifu/records/${record.id}`, { method: 'DELETE' });
+                            await loadCards();
+                          }}
+                          className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
+                          删除
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -778,6 +786,55 @@ export default function YipinShifuAdminPage() {
           </div>
         </section>
       </div>
+
+      {/* 复制记录弹窗 */}
+      {copyingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-sm border border-white/10 bg-stone-900 p-6">
+            <h3 className="text-lg font-semibold">复制记录 — {copyingRecord.name} 第{copyingRecord.cardNo}张卡</h3>
+            <div className="mt-4 grid gap-4">
+              <label className="text-sm text-stone-300">
+                消费日期
+                <input type="date" value={copyingRecord.mealDate}
+                  onChange={(e) => setCopyingRecord({ ...copyingRecord, mealDate: e.target.value })}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200" />
+              </label>
+              <label className="text-sm text-stone-300">
+                餐别
+                <select value={copyingRecord.mealType}
+                  onChange={(e) => setCopyingRecord({ ...copyingRecord, mealType: e.target.value })}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200">
+                  <option>中餐</option>
+                  <option>晚餐</option>
+                  <option>补扣</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={async () => {
+                  await fetch('/api/yipinshifu/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      records: [{ cardId: copyingRecord.cardId, mealDate: copyingRecord.mealDate, mealType: copyingRecord.mealType }],
+                    }),
+                  });
+                  setCopyingRecord(null);
+                  await loadCards();
+                  setMessage('记录已添加。');
+                }}
+                className="rounded-full bg-amber-200 px-5 py-2 text-sm font-semibold text-stone-950 hover:bg-white">
+                确认添加
+              </button>
+              <button onClick={() => setCopyingRecord(null)}
+                className="rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 重复记录警告弹窗 */}
       {duplicateWarning && (
