@@ -257,6 +257,28 @@ export default function YipinShifuAdminPage() {
     setImporting(false);
   }
 
+  const [renewingCard, setRenewingCard] = useState<{ name: string; paymentMethod: string } | null>(null);
+  const [renewDate, setRenewDate] = useState(today);
+  const [renewPayment, setRenewPayment] = useState('Cash');
+
+  async function submitRenew() {
+    if (!renewingCard) return;
+    const response = await fetch('/api/yipinshifu/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: renewingCard.name,
+        purchaseDate: renewDate,
+        paymentMethod: renewPayment,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) { setMessage(result.error || '续卡失败'); return; }
+    setRenewingCard(null);
+    await loadCards();
+    setMessage(`${renewingCard.name} 续卡成功。`);
+  }
+
   const customerGroups = useMemo(() => {
     const map = new Map<string, MealCard[]>();
     for (const card of cards) {
@@ -549,11 +571,22 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{stats.status}</td>
                         <td className="px-4 py-3">
                           {isFirstCard && (
-                            <a href={`/admin/yipinshifu/statement/${encodeURIComponent(card.customer_name)}`}
-                              target="_blank"
-                              className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600">
-                              生成对账单
-                            </a>
+                            <div className="flex gap-2">
+                              <a href={`/admin/yipinshifu/statement/${encodeURIComponent(card.customer_name)}`}
+                                target="_blank"
+                                className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600">
+                                对账单
+                              </a>
+                              <button
+                                onClick={() => {
+                                  setRenewingCard({ name: card.customer_name, paymentMethod: card.payment_method });
+                                  setRenewDate(today);
+                                  setRenewPayment(card.payment_method);
+                                }}
+                                className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white">
+                                续卡
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -653,6 +686,42 @@ export default function YipinShifuAdminPage() {
           </div>
         </section>
       </div>
+
+      {/* 续卡弹窗 */}
+      {renewingCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-sm border border-white/10 bg-stone-900 p-6">
+            <h3 className="text-lg font-semibold">续卡 — {renewingCard.name}</h3>
+            <div className="mt-4 grid gap-4">
+              <label className="text-sm text-stone-300">
+                购买日期
+                <input type="date" value={renewDate} onChange={(e) => setRenewDate(e.target.value)}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200" />
+              </label>
+              <label className="text-sm text-stone-300">
+                付款方式
+                <select value={renewPayment} onChange={(e) => setRenewPayment(e.target.value)}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200">
+                  <option>Cash</option>
+                  <option>Card</option>
+                  <option>Transfer</option>
+                  <option>Tabby</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button onClick={submitRenew}
+                className="rounded-full bg-amber-200 px-5 py-2 text-sm font-semibold text-stone-950 hover:bg-white">
+                确认续卡
+              </button>
+              <button onClick={() => setRenewingCard(null)}
+                className="rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
