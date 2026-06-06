@@ -47,8 +47,8 @@ const today = new Date().toISOString().slice(0, 10);
 
 function cardStats(card: MealCard) {
   const used = card.records.reduce((sum, r) => sum + Number(r.deducted || 0), 0);
-  const left = Math.max(0, Number(card.total_meals || 0) - used);
-  return { used, left, status: left > 0 ? '使用中' : '已用完' };
+  const left = Number(card.total_meals || 0) - used;
+  return { used, left, status: left > 0 ? '使用中' : left === 0 ? '已用完' : '超额' };
 }
 
 function parseExcelDate(val: string | number): string {
@@ -284,6 +284,14 @@ export default function YipinShifuAdminPage() {
 
   async function submitRenew() {
     if (!renewingCard) return;
+
+    // 计算该客户所有卡的欠次
+    const customerCards = cards.filter(c => c.customer_name === renewingCard.name);
+    const totalDebt = customerCards.reduce((sum, card) => {
+      const stats = cardStats(card);
+      return stats.left < 0 ? sum + Math.abs(stats.left) : sum;
+    }, 0);
+
     const response = await fetch('/api/yipinshifu/cards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -291,13 +299,28 @@ export default function YipinShifuAdminPage() {
         customerName: renewingCard.name,
         purchaseDate: renewDate,
         paymentMethod: renewPayment,
+        debtDeduction: totalDebt,
       }),
     });
     const result = await response.json();
     if (!response.ok) { setMessage(result.error || '续卡失败'); return; }
+
+    // 如果有欠次，自动插入扣除记录
+    if (totalDebt > 0 && result.card) {
+      for (let i = 0; i < totalDebt; i++) {
+        await fetch('/api/yipinshifu/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            records: [{ cardId: result.card.id, mealDate: renewDate, mealType: '补扣' }],
+          }),
+        });
+      }
+    }
+
     setRenewingCard(null);
     await loadCards();
-    setMessage(`${renewingCard.name} 续卡成功。`);
+    setMessage(`${renewingCard.name} 续卡成功${totalDebt > 0 ? `，已自动补扣 ${totalDebt} 次` : ''}。`);
   }
 
   const customerGroups = useMemo(() => {
@@ -484,10 +507,33 @@ export default function YipinShifuAdminPage() {
                           {row.done ? (
                             <span className="text-green-400 text-xs">✓ 已完成</span>
                           ) : row.status === 'matched' ? (
-                            <button onClick={() => confirmSingleRow(i)}
-                              className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500">
-                              确认导入
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => confirmSingleRow(i)}
+                                className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500">
+                                确认导入
+                              </button>
+                              {(() => {
+                                const matchedCard = activeCards.find(c => c.id === row.matchedCardId);
+                                const stats = matchedCard ? cardStats(matchedCard) : null;
+                                if (stats && stats.left <= 0) {
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        const card = cards.find(c => c.id === row.matchedCardId);
+                                        if (card) {
+                                          setRenewingCard({ name: card.customer_name, paymentMethod: card.payment_method });
+                                          setRenewDate(today);
+                                          setRenewPayment(card.payment_method);
+                                        }
+                                      }}
+                                      className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white">
+                                      续卡
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
                           ) : (
                             <div className="flex flex-wrap items-center gap-2">
                               <button
