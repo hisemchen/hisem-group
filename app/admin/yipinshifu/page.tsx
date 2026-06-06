@@ -434,6 +434,34 @@ export default function YipinShifuAdminPage() {
                                 className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white">
                                 创建卡并扣卡
                               </button>
+                              <button
+                                onClick={async () => {
+                                  await fetch('/api/yipinshifu/guests', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      records: [{ customerName: row.name, mealDate: row.mealDate, mealType: row.mealType, paymentStatus: 'paid' }],
+                                    }),
+                                  });
+                                  window.open(`/admin/yipinshifu/statement/guest/${encodeURIComponent(row.name)}?status=paid`, '_blank');
+                                }}
+                                className="rounded-full bg-green-700 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600">
+                                已付款对账单
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  await fetch('/api/yipinshifu/guests', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      records: [{ customerName: row.name, mealDate: row.mealDate, mealType: row.mealType, paymentStatus: 'unpaid' }],
+                                    }),
+                                  });
+                                  window.open(`/admin/yipinshifu/statement/guest/${encodeURIComponent(row.name)}?status=unpaid`, '_blank');
+                                }}
+                                className="rounded-full bg-red-700 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600">
+                                未付款对账单
+                              </button>
                             </div>
                           )}
                         </td>
