@@ -82,6 +82,7 @@ export default function YipinShifuAdminPage() {
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
   const [recordFilter, setRecordFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadCards() {
@@ -682,7 +683,10 @@ export default function YipinShifuAdminPage() {
                 <tr>
                   <th className="px-4 py-3">姓名</th>
                   <th className="px-4 py-3">卡号</th>
-                  <th className="px-4 py-3">消费日期</th>
+                  <th className="px-4 py-3 cursor-pointer select-none"
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>
+                    消费日期 {sortOrder === 'asc' ? '↑' : '↓'}
+                  </th>
                   <th className="px-4 py-3">餐别</th>
                   <th className="px-4 py-3">扣次</th>
                   <th className="px-4 py-3">扣后剩余</th>
@@ -694,32 +698,35 @@ export default function YipinShifuAdminPage() {
                   let left = Number(card.total_meals || 0);
                   return card.records.map((record) => {
                     left -= Number(record.deducted || 0);
-                    if (recordFilter && !card.customer_name.toLowerCase().includes(recordFilter.toLowerCase())) {
-                      return null;
-                    }
-                    return (
-                      <tr key={record.id} className="border-t border-white/10 text-stone-200">
-                        <td className="px-4 py-3">{card.customer_name}</td>
-                        <td className="px-4 py-3">第{card.card_no}张卡</td>
-                        <td className="px-4 py-3">{record.meal_date}</td>
-                        <td className="px-4 py-3">{record.meal_type}</td>
-                        <td className="px-4 py-3">-{record.deducted}</td>
-                        <td className="px-4 py-3">{left}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`确认删除 ${card.customer_name} 在 ${record.meal_date} ${record.meal_type} 的记录？`)) return;
-                              await fetch(`/api/yipinshifu/records/${record.id}`, { method: 'DELETE' });
-                              await loadCards();
-                            }}
-                            className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
-                            删除
-                          </button>
-                        </td>
-                      </tr>
-                    );
+                    return { card, record, left };
                   });
-                })}
+                })
+                .filter(({ card }) => !recordFilter || card.customer_name.toLowerCase().includes(recordFilter.toLowerCase()))
+                .sort((a, b) => {
+                  const diff = a.record.meal_date.localeCompare(b.record.meal_date);
+                  return sortOrder === 'asc' ? diff : -diff;
+                })
+                .map(({ card, record, left }) => (
+                  <tr key={record.id} className="border-t border-white/10 text-stone-200">
+                    <td className="px-4 py-3">{card.customer_name}</td>
+                    <td className="px-4 py-3">第{card.card_no}张卡</td>
+                    <td className="px-4 py-3">{record.meal_date}</td>
+                    <td className="px-4 py-3">{record.meal_type}</td>
+                    <td className="px-4 py-3">-{record.deducted}</td>
+                    <td className="px-4 py-3">{left}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`确认删除 ${card.customer_name} 在 ${record.meal_date} ${record.meal_type} 的记录？`)) return;
+                          await fetch(`/api/yipinshifu/records/${record.id}`, { method: 'DELETE' });
+                          await loadCards();
+                        }}
+                        className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
+                        删除
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
