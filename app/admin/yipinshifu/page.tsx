@@ -61,8 +61,8 @@ function parseExcelDate(val: string | number): string {
   }
   const parts = String(val).trim().split('/');
   if (parts.length === 2) {
-    const day = parts[0].padStart(2, '0');
-    const month = parts[1].padStart(2, '0');
+    const day = parts[0].padStart(2, '0');   // DD
+    const month = parts[1].padStart(2, '0'); // MM
     return `2026-${month}-${day}`;
   }
   return String(val);
@@ -175,7 +175,25 @@ export default function YipinShifuAdminPage() {
     reader.readAsBinaryString(file);
   }
 
+  const [duplicateWarning, setDuplicateWarning] = useState<{ i: number; message: string } | null>(null);
+
+  async function checkDuplicate(cardId: string, mealDate: string, mealType: string): Promise<boolean> {
+    const response = await fetch(`/api/yipinshifu/records/check?cardId=${cardId}&mealDate=${mealDate}&mealType=${encodeURIComponent(mealType)}`);
+    const result = await response.json();
+    return result.exists;
+  }
+
   async function confirmSingleRow(i: number) {
+    const row = importRows[i];
+    const isDuplicate = await checkDuplicate(row.matchedCardId, row.mealDate, row.mealType);
+    if (isDuplicate) {
+      setDuplicateWarning({ i, message: `${row.name} 在 ${row.mealDate} ${row.mealType} 已有记录，是否重复导入？` });
+      return;
+    }
+    await doConfirmRow(i);
+  }
+
+  async function doConfirmRow(i: number) {
     const row = importRows[i];
     const response = await fetch('/api/yipinshifu/batch', {
       method: 'POST',
@@ -190,6 +208,7 @@ export default function YipinShifuAdminPage() {
       setImportRows(updated);
       await loadCards();
     }
+    setDuplicateWarning(null);
   }
 
   async function recordGuest(i: number, paymentStatus: string) {
@@ -686,6 +705,31 @@ export default function YipinShifuAdminPage() {
           </div>
         </section>
       </div>
+
+      {/* 重复记录警告弹窗 */}
+      {duplicateWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-sm border border-white/10 bg-stone-900 p-6">
+            <h3 className="text-lg font-semibold text-amber-200">⚠️ 重复记录</h3>
+            <p className="mt-3 text-sm text-stone-300">{duplicateWarning.message}</p>
+            <div className="mt-5 flex gap-3">
+              <button onClick={() => doConfirmRow(duplicateWarning.i)}
+                className="rounded-full bg-amber-200 px-5 py-2 text-sm font-semibold text-stone-950 hover:bg-white">
+                确认重复导入
+              </button>
+              <button onClick={() => {
+                const updated = [...importRows];
+                updated[duplicateWarning.i] = { ...updated[duplicateWarning.i], done: true };
+                setImportRows(updated);
+                setDuplicateWarning(null);
+              }}
+                className="rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10">
+                跳过
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 续卡弹窗 */}
       {renewingCard && (
