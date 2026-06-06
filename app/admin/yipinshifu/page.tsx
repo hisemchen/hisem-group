@@ -81,6 +81,7 @@ export default function YipinShifuAdminPage() {
   const [mealType, setMealType] = useState('中餐');
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<{ id: string; cardId: string; name: string; mealDate: string; mealType: string } | null>(null);
   const [copyingRecord, setCopyingRecord] = useState<{ cardId: string; name: string; cardNo: number; mealDate: string; mealType: string } | null>(null);
   const [recordFilter, setRecordFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -774,6 +775,11 @@ export default function YipinShifuAdminPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <button
+                          onClick={() => setEditingRecord({ id: record.id, cardId: card.id, name: card.customer_name, mealDate: record.meal_date, mealType: record.meal_type })}
+                          className="rounded-full bg-blue-700 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-600">
+                          修改
+                        </button>
+                        <button
                           onClick={() => setCopyingRecord({ cardId: card.id, name: card.customer_name, cardNo: card.card_no, mealDate: record.meal_date, mealType: record.meal_type })}
                           className="rounded-full bg-stone-600 px-3 py-1 text-xs font-semibold text-white hover:bg-stone-500">
                           复制
@@ -796,6 +802,73 @@ export default function YipinShifuAdminPage() {
           </div>
         </section>
       </div>
+
+      {/* 修改记录弹窗 */}
+      {editingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+          <div className="w-full max-w-sm border border-white/10 bg-stone-900 p-6">
+            <h3 className="text-lg font-semibold">修改记录 — {editingRecord.name}</h3>
+            <div className="mt-4 grid gap-4">
+              <label className="text-sm text-stone-300">
+                选择餐卡
+                <select
+                  value={editingRecord.cardId}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, cardId: e.target.value })}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200">
+                  {cards.filter(c => c.customer_name === editingRecord.name).map((c) => {
+                    const stats = cardStats(c);
+                    return (
+                      <option key={c.id} value={c.id}>
+                        第{c.card_no}张卡 剩余{stats.left}次
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="text-sm text-stone-300">
+                消费日期
+                <input type="date" value={editingRecord.mealDate}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, mealDate: e.target.value })}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200" />
+              </label>
+              <label className="text-sm text-stone-300">
+                餐别
+                <select value={editingRecord.mealType}
+                  onChange={(e) => setEditingRecord({ ...editingRecord, mealType: e.target.value })}
+                  className="mt-2 w-full border border-white/10 bg-stone-800 px-3 py-2 text-white outline-none focus:border-amber-200">
+                  <option>中餐</option>
+                  <option>晚餐</option>
+                  <option>补扣</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={async () => {
+                  await fetch(`/api/yipinshifu/records/${editingRecord.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      card_id: editingRecord.cardId,
+                      meal_date: editingRecord.mealDate,
+                      meal_type: editingRecord.mealType,
+                    }),
+                  });
+                  setEditingRecord(null);
+                  await loadCards();
+                  setMessage('记录已修改。');
+                }}
+                className="rounded-full bg-amber-200 px-5 py-2 text-sm font-semibold text-stone-950 hover:bg-white">
+                确认修改
+              </button>
+              <button onClick={() => setEditingRecord(null)}
+                className="rounded-full border border-white/20 px-5 py-2 text-sm hover:bg-white/10">
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 复制记录弹窗 */}
       {copyingRecord && (
