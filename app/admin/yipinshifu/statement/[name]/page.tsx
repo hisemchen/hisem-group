@@ -33,7 +33,8 @@ export default async function StatementPage({ params }: { params: { name: string
     .from('yipin_meal_cards')
     .select('*, records:yipin_meal_records(*)')
     .eq('customer_name', name)
-    .order('card_no', { ascending: true });
+    .order('card_no', { ascending: true })
+    .order('meal_date', { referencedTable: 'yipin_meal_records', ascending: true });
 
   const customerCards = (cards || []) as MealCard[];
   const isMember = customerCards.length > 0;
@@ -138,11 +139,13 @@ export default async function StatementPage({ params }: { params: { name: string
         </div>
 
         <script dangerouslySetInnerHTML={{ __html: `
-          var btn = document.createElement('button');
-          btn.textContent = '🖨️ 打印 / 保存 PDF';
-          btn.style.cssText = 'display:block;position:fixed;bottom:30px;right:30px;background:#1a1a1a;color:#fff;border:none;padding:12px 24px;font-size:14px;cursor:pointer;border-radius:4px;';
-          btn.onclick = function() { window.print(); };
-          document.body.appendChild(btn);
+          setTimeout(function() {
+            var btn = document.createElement('button');
+            btn.textContent = '🖨️ 打印 / 保存 PDF';
+            btn.style.cssText = 'display:block;position:fixed;bottom:30px;right:30px;background:#1a1a1a;color:#fff;border:none;padding:12px 24px;font-size:14px;cursor:pointer;border-radius:4px;z-index:9999;';
+            btn.addEventListener('click', function() { window.print(); });
+            document.body.appendChild(btn);
+          }, 100);
         `}} />
       </body>
     </html>
