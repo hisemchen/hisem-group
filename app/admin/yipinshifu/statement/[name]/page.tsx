@@ -137,9 +137,15 @@ export default async function StatementPage({ params }: { params: { name: string
           一品食府 | HISEM GROUP
         </div>
 
-        <button className="print-btn" onClick={() => window.print()}>
-          🖨️ 打印 / 保存 PDF
-        </button>
+        <script dangerouslySetInnerHTML={{ __html: `
+          document.addEventListener('DOMContentLoaded', function() {
+            var btn = document.createElement('button');
+            btn.className = 'print-btn';
+            btn.textContent = '🖨️ 打印 / 保存 PDF';
+            btn.onclick = function() { window.print(); };
+            document.body.appendChild(btn);
+          });
+        `}} />
       </body>
     </html>
   );
