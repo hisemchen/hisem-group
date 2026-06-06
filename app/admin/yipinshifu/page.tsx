@@ -31,6 +31,8 @@ type ImportRow = {
   matchedCardId: string;
   status: 'matched' | 'unmatched';
   done?: boolean;
+  paid?: boolean;
+  paymentMethod?: string;
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -70,7 +72,6 @@ export default function YipinShifuAdminPage() {
   const [mealType, setMealType] = useState('中餐');
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
-  const [rowPayments, setRowPayments] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadCards() {
@@ -138,7 +139,6 @@ export default function YipinShifuAdminPage() {
       const workbook = XLSX.read(data, { type: 'binary' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<{ 姓名: string; 餐别: string; 日期: string | number }>(sheet);
-
       const parsed: ImportRow[] = rows.map((row) => {
         const name = String(row['姓名'] || '').trim();
         const mealType = String(row['餐别'] || '').trim();
@@ -151,11 +151,11 @@ export default function YipinShifuAdminPage() {
           matchedCardId: matched?.id || '',
           status: matched ? 'matched' : 'unmatched',
           done: false,
+          paid: false,
+          paymentMethod: 'Cash',
         };
       });
-
       setImportRows(parsed);
-      setRowPayments({});
     };
     reader.readAsBinaryString(file);
   }
@@ -178,25 +178,28 @@ export default function YipinShifuAdminPage() {
     }
   }
 
-  // 未匹配：创建卡并扣卡
+  // 标记已付款
+  function markPaid(i: number) {
+    const updated = [...importRows];
+    updated[i] = { ...updated[i], paid: true };
+    setImportRows(updated);
+  }
+
+  // 创建卡并扣卡
   async function createAndDeduct(i: number) {
     const row = importRows[i];
-    const payment = rowPayments[i] || 'Cash';
-
-    // 1. 创建卡
     const createRes = await fetch('/api/yipinshifu/cards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         customerName: row.name,
         purchaseDate: row.mealDate,
-        paymentMethod: payment,
+        paymentMethod: row.paymentMethod || 'Cash',
       }),
     });
     const createResult = await createRes.json();
     if (!createRes.ok) { setMessage(createResult.error || '创建卡失败'); return; }
 
-    // 2. 扣卡
     const deductRes = await fetch('/api/yipinshifu/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -212,7 +215,7 @@ export default function YipinShifuAdminPage() {
     }
   }
 
-  // 全部批量导入（已匹配且未完成）
+  // 全部批量导入已匹配
   async function submitImport() {
     setImporting(true);
     setMessage('');
@@ -364,8 +367,8 @@ export default function YipinShifuAdminPage() {
                                 updated[i] = { ...updated[i], matchedCardId: e.target.value };
                                 setImportRows(updated);
                               }}
-                              className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
                               disabled={row.done}
+                              className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
                             >
                               {activeCards.map((card) => {
                                 const stats = cardStats(card);
@@ -382,19 +385,22 @@ export default function YipinShifuAdminPage() {
                         </td>
                         <td className="px-4 py-2">
                           {row.done ? (
-                            <span className="text-green-400">✓ 已完成</span>
+                            <span className="text-green-400 text-xs">✓ 已完成</span>
                           ) : row.status === 'matched' ? (
-                            <button
-                              onClick={() => confirmSingleRow(i)}
-                              className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500"
-                            >
+                            <button onClick={() => confirmSingleRow(i)}
+                              className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-500">
                               确认导入
                             </button>
                           ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {/* 付款方式选择 */}
                               <select
-                                value={rowPayments[i] || 'Cash'}
-                                onChange={(e) => setRowPayments({ ...rowPayments, [i]: e.target.value })}
+                                value={row.paymentMethod || 'Cash'}
+                                onChange={(e) => {
+                                  const updated = [...importRows];
+                                  updated[i] = { ...updated[i], paymentMethod: e.target.value };
+                                  setImportRows(updated);
+                                }}
                                 className="border border-white/10 bg-stone-900 px-2 py-1 text-xs text-white outline-none focus:border-amber-200"
                               >
                                 <option>Cash</option>
@@ -402,11 +408,23 @@ export default function YipinShifuAdminPage() {
                                 <option>Transfer</option>
                                 <option>Tabby</option>
                               </select>
+                              {/* 已付款按钮 */}
+                              <button
+                                onClick={() => markPaid(i)}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                                  row.paid
+                                    ? 'bg-green-600 text-white cursor-default'
+                                    : 'border border-white/20 text-stone-300 hover:bg-white/10'
+                                }`}
+                              >
+                                {row.paid ? '✓ 已付款' : '已付款'}
+                              </button>
+                              {/* 创建卡并扣卡按钮 */}
                               <button
                                 onClick={() => createAndDeduct(i)}
                                 className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white"
                               >
-                                已付款·创建卡并扣卡
+                                创建卡并扣卡
                               </button>
                             </div>
                           )}
