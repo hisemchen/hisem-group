@@ -137,11 +137,13 @@ export default async function StatementPage({ params }: { params: { name: string
           一品食府 | HISEM GROUP
         </div>
 
-        <button id="print-btn" onclick="window.print()" style="display:block;position:fixed;bottom:30px;right:30px;background:#1a1a1a;color:#fff;border:none;padding:12px 24px;font-size:14px;cursor:pointer;border-radius:4px;">
-          🖨️ 打印 / 保存 PDF
-        </button>
-
-        <script dangerouslySetInnerHTML={{ __html: `window.onload = function() { document.getElementById('print-btn').style.display = 'block'; }` }} />
+        <script dangerouslySetInnerHTML={{ __html: `
+          var btn = document.createElement('button');
+          btn.textContent = '🖨️ 打印 / 保存 PDF';
+          btn.style.cssText = 'display:block;position:fixed;bottom:30px;right:30px;background:#1a1a1a;color:#fff;border:none;padding:12px 24px;font-size:14px;cursor:pointer;border-radius:4px;';
+          btn.onclick = function() { window.print(); };
+          document.body.appendChild(btn);
+        `}} />
       </body>
     </html>
   );
