@@ -67,8 +67,9 @@ export default async function StatementPage({ params }: { params: { name: string
           .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 12px; text-align: center; font-size: 11px; color: #999; }
           .print-btn { position: fixed; bottom: 30px; right: 30px; background: #1a1a1a; color: #fff; border: none; padding: 12px 24px; font-size: 14px; cursor: pointer; border-radius: 4px; }
           @media print {
-            .print-btn { display: none; }
-            body { padding: 20px; }
+            .print-btn { display: none !important; }
+            body { padding: 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            * { visibility: visible !important; }
           }
         `}</style>
       </head>
