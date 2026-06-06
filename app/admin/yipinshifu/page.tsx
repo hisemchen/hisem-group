@@ -81,6 +81,7 @@ export default function YipinShifuAdminPage() {
   const [mealType, setMealType] = useState('中餐');
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [recordFilter, setRecordFilter] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadCards() {
@@ -666,8 +667,17 @@ export default function YipinShifuAdminPage() {
         {/* 消费扣次记录 */}
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">消费扣次记录</h2>
-          <div className="mt-5 overflow-x-auto border border-white/10">
-            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+          <div className="mt-4">
+            <input
+              type="text"
+              value={recordFilter}
+              onChange={(e) => setRecordFilter(e.target.value)}
+              placeholder="按姓名筛选..."
+              className="border border-white/10 bg-stone-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-200 w-48"
+            />
+          </div>
+          <div className="mt-3 overflow-x-auto border border-white/10">
+            <table className="w-full min-w-[860px] border-collapse text-left text-sm">
               <thead className="bg-amber-200 text-xs font-semibold uppercase text-stone-950">
                 <tr>
                   <th className="px-4 py-3">姓名</th>
@@ -676,6 +686,7 @@ export default function YipinShifuAdminPage() {
                   <th className="px-4 py-3">餐别</th>
                   <th className="px-4 py-3">扣次</th>
                   <th className="px-4 py-3">扣后剩余</th>
+                  <th className="px-4 py-3">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -683,6 +694,9 @@ export default function YipinShifuAdminPage() {
                   let left = Number(card.total_meals || 0);
                   return card.records.map((record) => {
                     left -= Number(record.deducted || 0);
+                    if (recordFilter && !card.customer_name.toLowerCase().includes(recordFilter.toLowerCase())) {
+                      return null;
+                    }
                     return (
                       <tr key={record.id} className="border-t border-white/10 text-stone-200">
                         <td className="px-4 py-3">{card.customer_name}</td>
@@ -691,6 +705,17 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{record.meal_type}</td>
                         <td className="px-4 py-3">-{record.deducted}</td>
                         <td className="px-4 py-3">{left}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`确认删除 ${card.customer_name} 在 ${record.meal_date} ${record.meal_type} 的记录？`)) return;
+                              await fetch(`/api/yipinshifu/records/${record.id}`, { method: 'DELETE' });
+                              await loadCards();
+                            }}
+                            className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
+                            删除
+                          </button>
+                        </td>
                       </tr>
                     );
                   });
