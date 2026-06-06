@@ -40,15 +40,21 @@ function cardStats(card: MealCard) {
   return { used, left, status: left > 0 ? '使用中' : '已用完' };
 }
 
-function parseExcelDate(val: string): string {
-  // 格式 "15/01" → "2026-01-15"
-  const parts = val.toString().trim().split('/');
+function parseExcelDate(val: string | number): string {
+  // 处理 Excel 数字日期（如 46037）
+  if (typeof val === 'number' || (!isNaN(Number(val)) && !String(val).includes('/'))) {
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + Number(val) * 86400000);
+    return date.toISOString().slice(0, 10);
+  }
+  // 处理文本格式 "15/01"
+  const parts = String(val).trim().split('/');
   if (parts.length === 2) {
     const day = parts[0].padStart(2, '0');
     const month = parts[1].padStart(2, '0');
     return `2026-${month}-${day}`;
   }
-  return val;
+  return String(val);
 }
 
 export default function YipinShifuAdminPage() {
@@ -129,12 +135,12 @@ export default function YipinShifuAdminPage() {
       const data = evt.target?.result;
       const workbook = XLSX.read(data, { type: 'binary' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<{ 姓名: string; 餐别: string; 日期: string }>(sheet);
+      const rows = XLSX.utils.sheet_to_json<{ 姓名: string; 餐别: string; 日期: string | number }>(sheet);
 
       const parsed: ImportRow[] = rows.map((row) => {
         const name = String(row['姓名'] || '').trim();
         const mealType = String(row['餐别'] || '').trim();
-        const mealDate = parseExcelDate(String(row['日期'] || '').trim());
+        const mealDate = parseExcelDate(row['日期']);
 
         const matched = activeCards.find(
           (card) => card.customer_name.trim() === name
@@ -273,7 +279,7 @@ export default function YipinShifuAdminPage() {
         {/* 批量导入 */}
         <section className="mt-8 border border-white/10 bg-white/[0.04] p-5">
           <h2 className="text-xl font-semibold">批量导入扣卡</h2>
-          <p className="mt-2 text-sm text-stone-400">Excel 需包含三列：姓名、餐别、日期（格式 15/01）</p>
+          <p className="mt-2 text-sm text-stone-400">Excel 需包含三列：姓名、餐别、日期</p>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileUpload}
             className="mt-4 text-sm text-stone-300" />
 
