@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 
-
 type MealRecord = {
   id: string;
   meal_date: string;
@@ -25,6 +24,15 @@ type MealCard = {
   records: MealRecord[];
 };
 
+type GuestRecord = {
+  id: string;
+  customer_name: string;
+  meal_date: string;
+  meal_type: string;
+  price_aed: number;
+  payment_status: string;
+};
+
 type ImportRow = {
   name: string;
   mealType: string;
@@ -32,7 +40,6 @@ type ImportRow = {
   matchedCardId: string;
   status: 'matched' | 'unmatched';
   done?: boolean;
-  paid?: boolean;
   paymentMethod?: string;
 };
 
@@ -61,10 +68,9 @@ function parseExcelDate(val: string | number): string {
   return String(val);
 }
 
-
-
 export default function YipinShifuAdminPage() {
   const [cards, setCards] = useState<MealCard[]>([]);
+  const [guestRecords, setGuestRecords] = useState<GuestRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -91,7 +97,16 @@ export default function YipinShifuAdminPage() {
     setLoading(false);
   }
 
-  useEffect(() => { loadCards(); }, []);
+  async function loadGuests() {
+    const response = await fetch('/api/yipinshifu/guests', { cache: 'no-store' });
+    const result = await response.json();
+    if (response.ok) setGuestRecords(result.records || []);
+  }
+
+  useEffect(() => {
+    loadCards();
+    loadGuests();
+  }, []);
 
   const activeCards = useMemo(
     () => cards.filter((card) => cardStats(card).left > 0),
@@ -151,7 +166,8 @@ export default function YipinShifuAdminPage() {
           name, mealType, mealDate,
           matchedCardId: matched?.id || '',
           status: matched ? 'matched' : 'unmatched',
-          done: false, paid: false, paymentMethod: 'Cash',
+          done: false,
+          paymentMethod: 'Cash',
         };
       });
       setImportRows(parsed);
@@ -176,10 +192,17 @@ export default function YipinShifuAdminPage() {
     }
   }
 
-  function markPaid(i: number) {
-    const updated = [...importRows];
-    updated[i] = { ...updated[i], paid: true };
-    setImportRows(updated);
+  async function recordGuest(i: number, paymentStatus: string) {
+    const row = importRows[i];
+    await fetch('/api/yipinshifu/guests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        records: [{ customerName: row.name, mealDate: row.mealDate, mealType: row.mealType, paymentStatus }],
+      }),
+    });
+    await loadGuests();
+    setMessage(`已记录 ${row.name} 为${paymentStatus === 'paid' ? '已付款' : '未付款'}。`);
   }
 
   async function createAndDeduct(i: number) {
@@ -231,7 +254,6 @@ export default function YipinShifuAdminPage() {
     setImporting(false);
   }
 
-  // 按客人分组
   const customerGroups = useMemo(() => {
     const map = new Map<string, MealCard[]>();
     for (const card of cards) {
@@ -241,6 +263,16 @@ export default function YipinShifuAdminPage() {
     }
     return map;
   }, [cards]);
+
+  // 非会员按姓名分组
+  const guestGroups = useMemo(() => {
+    const map = new Map<string, GuestRecord[]>();
+    for (const r of guestRecords) {
+      if (!map.has(r.customer_name)) map.set(r.customer_name, []);
+      map.get(r.customer_name)!.push(r);
+    }
+    return map;
+  }, [guestRecords]);
 
   return (
     <main className="min-h-screen bg-stone-950 px-6 py-10 text-white">
@@ -412,6 +444,16 @@ export default function YipinShifuAdminPage() {
                             </button>
                           ) : (
                             <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                onClick={() => recordGuest(i, 'paid')}
+                                className="rounded-full bg-green-700 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600">
+                                已付
+                              </button>
+                              <button
+                                onClick={() => recordGuest(i, 'unpaid')}
+                                className="rounded-full bg-red-700 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600">
+                                未付
+                              </button>
                               <select
                                 value={row.paymentMethod || 'Cash'}
                                 onChange={(e) => {
@@ -426,41 +468,9 @@ export default function YipinShifuAdminPage() {
                                 <option>Transfer</option>
                                 <option>Tabby</option>
                               </select>
-                              <button onClick={() => markPaid(i)}
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${row.paid ? 'bg-green-600 text-white' : 'border border-white/20 text-stone-300 hover:bg-white/10'}`}>
-                                {row.paid ? '✓ 已付款' : '已付款'}
-                              </button>
                               <button onClick={() => createAndDeduct(i)}
                                 className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white">
-                                创建卡并扣卡
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  await fetch('/api/yipinshifu/guests', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      records: [{ customerName: row.name, mealDate: row.mealDate, mealType: row.mealType, paymentStatus: 'paid' }],
-                                    }),
-                                  });
-                                  window.open(`/admin/yipinshifu/statement/guest/${encodeURIComponent(row.name)}?status=paid`, '_blank');
-                                }}
-                                className="rounded-full bg-green-700 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600">
-                                已付款对账单
-                              </button>
-                              <button
-                                onClick={async () => {
-                                  await fetch('/api/yipinshifu/guests', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                      records: [{ customerName: row.name, mealDate: row.mealDate, mealType: row.mealType, paymentStatus: 'unpaid' }],
-                                    }),
-                                  });
-                                  window.open(`/admin/yipinshifu/statement/guest/${encodeURIComponent(row.name)}?status=unpaid`, '_blank');
-                                }}
-                                className="rounded-full bg-red-700 px-3 py-1 text-xs font-semibold text-white hover:bg-red-600">
-                                未付款对账单
+                                创建卡
                               </button>
                             </div>
                           )}
@@ -536,14 +546,63 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{stats.status}</td>
                         <td className="px-4 py-3">
                           {isFirstCard && (
-                            <a
-                              href={`/admin/yipinshifu/statement/${encodeURIComponent(card.customer_name)}`}
+                            <a href={`/admin/yipinshifu/statement/${encodeURIComponent(card.customer_name)}`}
                               target="_blank"
-                              className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600"
-                            >
+                              className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600">
                               生成对账单
                             </a>
                           )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* 非会员消费汇总 */}
+        <section className="mt-10">
+          <h2 className="text-2xl font-semibold">非会员消费汇总</h2>
+          <div className="mt-5 overflow-x-auto border border-white/10">
+            <table className="w-full min-w-[700px] border-collapse text-left text-sm">
+              <thead className="bg-amber-200 text-xs font-semibold uppercase text-stone-950">
+                <tr>
+                  <th className="px-4 py-3">姓名</th>
+                  <th className="px-4 py-3">消费次数</th>
+                  <th className="px-4 py-3">合计金额</th>
+                  <th className="px-4 py-3">付款状态</th>
+                  <th className="px-4 py-3">对账单</th>
+                </tr>
+              </thead>
+              <tbody>
+                {guestGroups.size === 0 ? (
+                  <tr><td className="px-4 py-4 text-stone-400" colSpan={5}>暂无非会员记录</td></tr>
+                ) : (
+                  Array.from(guestGroups.entries()).map(([name, records]) => {
+                    const total = records.reduce((sum, r) => sum + Number(r.price_aed || 35), 0);
+                    const hasPaid = records.some(r => r.payment_status === 'paid');
+                    const hasUnpaid = records.some(r => r.payment_status === 'unpaid');
+                    const statusText = hasPaid && hasUnpaid ? '部分已付' : hasPaid ? '已付款' : '未付款';
+                    const statusColor = hasPaid && hasUnpaid ? 'text-amber-400' : hasPaid ? 'text-green-400' : 'text-red-400';
+                    return (
+                      <tr key={name} className="border-t border-white/10 text-stone-200">
+                        <td className="px-4 py-3">{name}</td>
+                        <td className="px-4 py-3">{records.length} 次</td>
+                        <td className="px-4 py-3">AED {total.toFixed(0)}</td>
+                        <td className={`px-4 py-3 ${statusColor}`}>{statusText}</td>
+                        <td className="px-4 py-3 flex gap-2">
+                          <a href={`/admin/yipinshifu/statement/guest/${encodeURIComponent(name)}?status=paid`}
+                            target="_blank"
+                            className="rounded-full bg-green-800 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700">
+                            已付对账单
+                          </a>
+                          <a href={`/admin/yipinshifu/statement/guest/${encodeURIComponent(name)}?status=unpaid`}
+                            target="_blank"
+                            className="rounded-full bg-red-800 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700">
+                            未付对账单
+                          </a>
                         </td>
                       </tr>
                     );
