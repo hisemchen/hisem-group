@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 
 type MealRecord = {
   id: string;
@@ -58,6 +59,145 @@ function parseExcelDate(val: string | number): string {
     return `2026-${month}-${day}`;
   }
   return String(val);
+}
+
+async function generateStatement(customerName: string, customerCards: MealCard[]) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // 加载 logo
+  const logoUrl = '/logo.png';
+  const logoImg = await new Promise<HTMLImageElement>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = logoUrl;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = logoImg.width;
+  canvas.height = logoImg.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(logoImg, 0, 0);
+  const logoData = canvas.toDataURL('image/png');
+
+  // 页面设置
+  const pageW = 210;
+  const margin = 20;
+  let y = 20;
+
+  // Logo
+  doc.addImage(logoData, 'PNG', margin, y, 25, 25);
+
+  // 标题
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Yi Pin Shi Fu', margin + 30, y + 10);
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Membership Statement', margin + 30, y + 18);
+
+  // 生成日期
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(`Generated: ${today}`, pageW - margin, y + 8, { align: 'right' });
+  doc.setTextColor(0);
+
+  y += 32;
+
+  // 分割线
+  doc.setDrawColor(200);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  // 客户信息
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Customer: ${customerName}`, margin, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const isMember = customerCards.length > 0;
+  doc.text(`Member Status: ${isMember ? 'Member (Meal Card Holder)' : 'Non-Member'}`, margin, y);
+  y += 10;
+
+  // 每张卡
+  for (const card of customerCards) {
+    const stats = cardStats(card);
+
+    // 卡头部背景
+    doc.setFillColor(245, 240, 220);
+    doc.rect(margin, y, pageW - margin * 2, 8, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Card #${card.card_no}`, margin + 3, y + 5.5);
+    y += 10;
+
+    // 卡信息
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Purchase Date: ${card.purchase_date}`, margin + 3, y);
+    doc.text(`Payment: ${card.payment_method}`, margin + 60, y);
+    doc.text(`Amount: AED ${Number(card.price_aed).toFixed(0)}`, margin + 110, y);
+    y += 6;
+    doc.text(`Total Meals: ${card.total_meals}`, margin + 3, y);
+    doc.text(`Used: ${stats.used}`, margin + 60, y);
+    doc.text(`Remaining: ${stats.left}`, margin + 110, y);
+    y += 8;
+
+    // 消费记录表头
+    if (card.records.length > 0) {
+      doc.setFillColor(220, 200, 150);
+      doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('Date', margin + 3, y + 4);
+      doc.text('Meal Type', margin + 50, y + 4);
+      doc.text('Deducted', margin + 100, y + 4);
+      doc.text('Remaining After', margin + 130, y + 4);
+      y += 7;
+
+      // 消费记录行
+      let left = Number(card.total_meals);
+      for (const record of card.records) {
+        left -= Number(record.deducted || 0);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setDrawColor(230);
+        doc.line(margin, y, pageW - margin, y);
+        doc.text(record.meal_date, margin + 3, y + 4);
+        doc.text(record.meal_type, margin + 50, y + 4);
+        doc.text(`-${record.deducted}`, margin + 100, y + 4);
+        doc.text(`${left}`, margin + 130, y + 4);
+        y += 6;
+
+        // 换页
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      }
+    } else {
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text('No consumption records.', margin + 3, y);
+      doc.setTextColor(0);
+      y += 6;
+    }
+
+    y += 6;
+
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+  }
+
+  // 底部
+  doc.setDrawColor(200);
+  doc.line(margin, 280, pageW - margin, 280);
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text('Yi Pin Shi Fu | HISEM GROUP', pageW / 2, 285, { align: 'center' });
+
+  doc.save(`${customerName}_对账单_${today}.pdf`);
 }
 
 export default function YipinShifuAdminPage() {
@@ -145,14 +285,10 @@ export default function YipinShifuAdminPage() {
         const mealDate = parseExcelDate(row['日期']);
         const matched = activeCards.find((card) => card.customer_name.trim() === name);
         return {
-          name,
-          mealType,
-          mealDate,
+          name, mealType, mealDate,
           matchedCardId: matched?.id || '',
           status: matched ? 'matched' : 'unmatched',
-          done: false,
-          paid: false,
-          paymentMethod: 'Cash',
+          done: false, paid: false, paymentMethod: 'Cash',
         };
       });
       setImportRows(parsed);
@@ -160,7 +296,6 @@ export default function YipinShifuAdminPage() {
     reader.readAsBinaryString(file);
   }
 
-  // 单条确认导入（已匹配）
   async function confirmSingleRow(i: number) {
     const row = importRows[i];
     const response = await fetch('/api/yipinshifu/batch', {
@@ -178,14 +313,12 @@ export default function YipinShifuAdminPage() {
     }
   }
 
-  // 标记已付款
   function markPaid(i: number) {
     const updated = [...importRows];
     updated[i] = { ...updated[i], paid: true };
     setImportRows(updated);
   }
 
-  // 创建卡并扣卡
   async function createAndDeduct(i: number) {
     const row = importRows[i];
     const createRes = await fetch('/api/yipinshifu/cards', {
@@ -199,7 +332,6 @@ export default function YipinShifuAdminPage() {
     });
     const createResult = await createRes.json();
     if (!createRes.ok) { setMessage(createResult.error || '创建卡失败'); return; }
-
     const deductRes = await fetch('/api/yipinshifu/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -215,7 +347,6 @@ export default function YipinShifuAdminPage() {
     }
   }
 
-  // 全部批量导入已匹配
   async function submitImport() {
     setImporting(true);
     setMessage('');
@@ -224,11 +355,7 @@ export default function YipinShifuAdminPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        records: toSubmit.map((r) => ({
-          cardId: r.matchedCardId,
-          mealDate: r.mealDate,
-          mealType: r.mealType,
-        })),
+        records: toSubmit.map((r) => ({ cardId: r.matchedCardId, mealDate: r.mealDate, mealType: r.mealType })),
       }),
     });
     const result = await response.json();
@@ -240,6 +367,17 @@ export default function YipinShifuAdminPage() {
     setMessage(`批量导入完成，成功 ${toSubmit.length - failed} 条${failed ? `，失败 ${failed} 条` : ''}。`);
     setImporting(false);
   }
+
+  // 按客人分组
+  const customerGroups = useMemo(() => {
+    const map = new Map<string, MealCard[]>();
+    for (const card of cards) {
+      const name = card.customer_name;
+      if (!map.has(name)) map.set(name, []);
+      map.get(name)!.push(card);
+    }
+    return map;
+  }, [cards]);
 
   return (
     <main className="min-h-screen bg-stone-950 px-6 py-10 text-white">
@@ -384,11 +522,7 @@ export default function YipinShifuAdminPage() {
                               value={row.matchedCardId}
                               onChange={(e) => {
                                 const updated = [...importRows];
-                                updated[i] = {
-                                  ...updated[i],
-                                  matchedCardId: e.target.value,
-                                  status: e.target.value ? 'matched' : 'unmatched',
-                                };
+                                updated[i] = { ...updated[i], matchedCardId: e.target.value, status: e.target.value ? 'matched' : 'unmatched' };
                                 setImportRows(updated);
                               }}
                               className="border border-white/10 bg-stone-900 px-2 py-1 text-white outline-none focus:border-amber-200"
@@ -415,7 +549,6 @@ export default function YipinShifuAdminPage() {
                             </button>
                           ) : (
                             <div className="flex flex-wrap items-center gap-2">
-                              {/* 付款方式选择 */}
                               <select
                                 value={row.paymentMethod || 'Cash'}
                                 onChange={(e) => {
@@ -430,22 +563,12 @@ export default function YipinShifuAdminPage() {
                                 <option>Transfer</option>
                                 <option>Tabby</option>
                               </select>
-                              {/* 已付款按钮 */}
-                              <button
-                                onClick={() => markPaid(i)}
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                                  row.paid
-                                    ? 'bg-green-600 text-white cursor-default'
-                                    : 'border border-white/20 text-stone-300 hover:bg-white/10'
-                                }`}
-                              >
+                              <button onClick={() => markPaid(i)}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${row.paid ? 'bg-green-600 text-white' : 'border border-white/20 text-stone-300 hover:bg-white/10'}`}>
                                 {row.paid ? '✓ 已付款' : '已付款'}
                               </button>
-                              {/* 创建卡并扣卡按钮 */}
-                              <button
-                                onClick={() => createAndDeduct(i)}
-                                className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white"
-                              >
+                              <button onClick={() => createAndDeduct(i)}
+                                className="rounded-full bg-amber-200 px-3 py-1 text-xs font-semibold text-stone-950 hover:bg-white">
                                 创建卡并扣卡
                               </button>
                             </div>
@@ -470,10 +593,11 @@ export default function YipinShifuAdminPage() {
           )}
         </section>
 
+        {/* 会员餐次卡汇总 */}
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">会员餐次卡汇总</h2>
           <div className="mt-5 overflow-x-auto border border-white/10">
-            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[1000px] border-collapse text-left text-sm">
               <thead className="bg-amber-200 text-xs font-semibold uppercase text-stone-950">
                 <tr>
                   <th className="px-4 py-3">姓名</th>
@@ -485,14 +609,17 @@ export default function YipinShifuAdminPage() {
                   <th className="px-4 py-3">已用</th>
                   <th className="px-4 py-3">剩余</th>
                   <th className="px-4 py-3">状态</th>
+                  <th className="px-4 py-3">对账单</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="px-4 py-4 text-stone-300" colSpan={9}>Loading...</td></tr>
+                  <tr><td className="px-4 py-4 text-stone-300" colSpan={10}>Loading...</td></tr>
                 ) : (
                   cards.map((card) => {
                     const stats = cardStats(card);
+                    const customerCards = customerGroups.get(card.customer_name) || [];
+                    const isFirstCard = customerCards[0]?.id === card.id;
                     return (
                       <tr key={card.id} className="border-t border-white/10 text-stone-200">
                         <td className="px-4 py-3">{card.customer_name}</td>
@@ -516,6 +643,16 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{stats.used}</td>
                         <td className="px-4 py-3">{stats.left}</td>
                         <td className="px-4 py-3">{stats.status}</td>
+                        <td className="px-4 py-3">
+                          {isFirstCard && (
+                            <button
+                              onClick={() => generateStatement(card.customer_name, customerCards)}
+                              className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600"
+                            >
+                              生成对账单
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })
@@ -525,6 +662,7 @@ export default function YipinShifuAdminPage() {
           </div>
         </section>
 
+        {/* 消费扣次记录 */}
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">消费扣次记录</h2>
           <div className="mt-5 overflow-x-auto border border-white/10">
