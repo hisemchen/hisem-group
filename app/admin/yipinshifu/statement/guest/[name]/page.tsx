@@ -11,13 +11,10 @@ type GuestRecord = {
 
 export default async function GuestStatementPage({
   params,
-  searchParams,
 }: {
   params: { name: string };
-  searchParams: { status?: string };
 }) {
   const name = decodeURIComponent(params.name);
-  const status = searchParams.status || 'unpaid';
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: records } = await supabaseAdmin
@@ -27,8 +24,9 @@ export default async function GuestStatementPage({
     .order('meal_date', { ascending: true });
 
   const guestRecords = (records || []) as GuestRecord[];
-  const total = guestRecords.reduce((sum, r) => sum + Number(r.price_aed || 35), 0);
-  const isPaid = status === 'paid';
+  const totalPaid = guestRecords.filter(r => r.payment_status === 'paid').reduce((sum, r) => sum + Number(r.price_aed || 35), 0);
+  const totalUnpaid = guestRecords.filter(r => r.payment_status === 'unpaid').reduce((sum, r) => sum + Number(r.price_aed || 35), 0);
+  const total = totalPaid + totalUnpaid;
 
   return (
     <html lang="zh">
@@ -45,14 +43,16 @@ export default async function GuestStatementPage({
           .meta { margin-left: auto; text-align: right; font-size: 12px; color: #666; }
           .customer-info { margin-bottom: 24px; }
           .customer-info h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-          .customer-info p { font-size: 13px; color: #444; margin-top: 4px; }
-          .status-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-top: 6px; }
-          .status-paid { background: #d1fae5; color: #065f46; }
-          .status-unpaid { background: #fee2e2; color: #991b1b; }
+          .customer-info p { font-size: 13px; color: #444; }
           table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
           th { background: #dcc896; padding: 8px 14px; text-align: left; font-weight: 600; }
           td { padding: 7px 14px; border-bottom: 1px solid #f0f0f0; }
-          .total-row { background: #f5f0dc; font-weight: 700; }
+          .badge-paid { display: inline-block; background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+          .badge-unpaid { display: inline-block; background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+          .summary { margin-top: 16px; border: 1px solid #ddd; }
+          .summary-row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+          .summary-row:last-child { border-bottom: none; }
+          .summary-total { background: #f5f0dc; font-weight: 700; }
           .footer { margin-top: 40px; border-top: 1px solid #ddd; padding-top: 12px; text-align: center; font-size: 11px; color: #999; }
           .print-btn { position: fixed; bottom: 30px; right: 30px; background: #1a1a1a; color: #fff; border: none; padding: 12px 24px; font-size: 14px; cursor: pointer; border-radius: 4px; }
           @media print {
@@ -76,9 +76,6 @@ export default async function GuestStatementPage({
         <div className="customer-info">
           <h2>客户姓名：{name}</h2>
           <p>会员状态：散客（非会员）</p>
-          <span className={`status-badge ${isPaid ? 'status-paid' : 'status-unpaid'}`}>
-            {isPaid ? '✓ 已付款' : '✗ 未付款'}
-          </span>
         </div>
 
         <table>
@@ -87,6 +84,7 @@ export default async function GuestStatementPage({
               <th>消费日期</th>
               <th>餐别</th>
               <th>金额</th>
+              <th>付款状态</th>
             </tr>
           </thead>
           <tbody>
@@ -95,14 +93,30 @@ export default async function GuestStatementPage({
                 <td>{record.meal_date}</td>
                 <td>{record.meal_type}</td>
                 <td>AED {Number(record.price_aed).toFixed(0)}</td>
+                <td>
+                  {record.payment_status === 'paid'
+                    ? <span className="badge-paid">✓ 已付款</span>
+                    : <span className="badge-unpaid">✗ 未付款</span>}
+                </td>
               </tr>
             ))}
-            <tr className="total-row">
-              <td colSpan={2}>合计</td>
-              <td>AED {total.toFixed(0)}</td>
-            </tr>
           </tbody>
         </table>
+
+        <div className="summary">
+          <div className="summary-row">
+            <span>已付款合计</span>
+            <span>AED {totalPaid.toFixed(0)}</span>
+          </div>
+          <div className="summary-row">
+            <span>未付款合计</span>
+            <span>AED {totalUnpaid.toFixed(0)}</span>
+          </div>
+          <div className="summary-row summary-total">
+            <span>总计</span>
+            <span>AED {total.toFixed(0)}</span>
+          </div>
+        </div>
 
         <div className="footer">
           一品食府 | HISEM GROUP
