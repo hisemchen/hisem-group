@@ -84,6 +84,7 @@ export default function YipinShifuAdminPage() {
   const [copyingRecord, setCopyingRecord] = useState<{ cardId: string; name: string; cardNo: number; mealDate: string; mealType: string } | null>(null);
   const [recordFilter, setRecordFilter] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [cardFilter, setCardFilter] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadCards() {
@@ -590,7 +591,16 @@ export default function YipinShifuAdminPage() {
         {/* 会员餐次卡汇总 */}
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">会员餐次卡汇总</h2>
-          <div className="mt-5 overflow-x-auto border border-white/10">
+          <div className="mt-4">
+            <input
+              type="text"
+              value={cardFilter}
+              onChange={(e) => setCardFilter(e.target.value)}
+              placeholder="按姓名筛选..."
+              className="border border-white/10 bg-stone-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-200 w-48"
+            />
+          </div>
+          <div className="mt-3 overflow-x-auto border border-white/10">
             <table className="w-full min-w-[1000px] border-collapse text-left text-sm">
               <thead className="bg-amber-200 text-xs font-semibold uppercase text-stone-950">
                 <tr>
@@ -610,7 +620,7 @@ export default function YipinShifuAdminPage() {
                 {loading ? (
                   <tr><td className="px-4 py-4 text-stone-300" colSpan={10}>Loading...</td></tr>
                 ) : (
-                  cards.map((card) => {
+                  cards.filter(card => !cardFilter || card.customer_name.toLowerCase().includes(cardFilter.toLowerCase())).map((card) => {
                     const stats = cardStats(card);
                     const customerCards = customerGroups.get(card.customer_name) || [];
                     const isFirstCard = customerCards[0]?.id === card.id;
