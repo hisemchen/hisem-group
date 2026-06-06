@@ -2,13 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 export async function GET() {
-  console.log('KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 30));
-  
   const { data, error } = await supabaseAdmin
     .from('yipin_meal_cards')
     .select('*, records:yipin_meal_records(*)')
     .order('created_at', { ascending: false })
-    .order('created_at', {
+    .order('meal_date', {
       referencedTable: 'yipin_meal_records',
       ascending: true,
     });
