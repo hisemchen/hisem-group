@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
+
 
 type MealRecord = {
   id: string;
@@ -61,144 +61,7 @@ function parseExcelDate(val: string | number): string {
   return String(val);
 }
 
-async function generateStatement(customerName: string, customerCards: MealCard[]) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  // 加载 logo
-  const logoUrl = '/logo.png';
-  const logoImg = await new Promise<HTMLImageElement>((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.src = logoUrl;
-  });
-  const canvas = document.createElement('canvas');
-  canvas.width = logoImg.width;
-  canvas.height = logoImg.height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(logoImg, 0, 0);
-  const logoData = canvas.toDataURL('image/png');
-
-  // 页面设置
-  const pageW = 210;
-  const margin = 20;
-  let y = 20;
-
-  // Logo
-  doc.addImage(logoData, 'PNG', margin, y, 25, 25);
-
-  // 标题
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Yi Pin Shi Fu', margin + 30, y + 10);
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Membership Statement', margin + 30, y + 18);
-
-  // 生成日期
-  doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text(`Generated: ${today}`, pageW - margin, y + 8, { align: 'right' });
-  doc.setTextColor(0);
-
-  y += 32;
-
-  // 分割线
-  doc.setDrawColor(200);
-  doc.line(margin, y, pageW - margin, y);
-  y += 8;
-
-  // 客户信息
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Customer: ${customerName}`, margin, y);
-  y += 6;
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const isMember = customerCards.length > 0;
-  doc.text(`Member Status: ${isMember ? 'Member (Meal Card Holder)' : 'Non-Member'}`, margin, y);
-  y += 10;
-
-  // 每张卡
-  for (const card of customerCards) {
-    const stats = cardStats(card);
-
-    // 卡头部背景
-    doc.setFillColor(245, 240, 220);
-    doc.rect(margin, y, pageW - margin * 2, 8, 'F');
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Card #${card.card_no}`, margin + 3, y + 5.5);
-    y += 10;
-
-    // 卡信息
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(`Purchase Date: ${card.purchase_date}`, margin + 3, y);
-    doc.text(`Payment: ${card.payment_method}`, margin + 60, y);
-    doc.text(`Amount: AED ${Number(card.price_aed).toFixed(0)}`, margin + 110, y);
-    y += 6;
-    doc.text(`Total Meals: ${card.total_meals}`, margin + 3, y);
-    doc.text(`Used: ${stats.used}`, margin + 60, y);
-    doc.text(`Remaining: ${stats.left}`, margin + 110, y);
-    y += 8;
-
-    // 消费记录表头
-    if (card.records.length > 0) {
-      doc.setFillColor(220, 200, 150);
-      doc.rect(margin, y, pageW - margin * 2, 6, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      doc.text('Date', margin + 3, y + 4);
-      doc.text('Meal Type', margin + 50, y + 4);
-      doc.text('Deducted', margin + 100, y + 4);
-      doc.text('Remaining After', margin + 130, y + 4);
-      y += 7;
-
-      // 消费记录行
-      let left = Number(card.total_meals);
-      for (const record of card.records) {
-        left -= Number(record.deducted || 0);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setDrawColor(230);
-        doc.line(margin, y, pageW - margin, y);
-        doc.text(record.meal_date, margin + 3, y + 4);
-        doc.text(record.meal_type, margin + 50, y + 4);
-        doc.text(`-${record.deducted}`, margin + 100, y + 4);
-        doc.text(`${left}`, margin + 130, y + 4);
-        y += 6;
-
-        // 换页
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
-      }
-    } else {
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text('No consumption records.', margin + 3, y);
-      doc.setTextColor(0);
-      y += 6;
-    }
-
-    y += 6;
-
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
-    }
-  }
-
-  // 底部
-  doc.setDrawColor(200);
-  doc.line(margin, 280, pageW - margin, 280);
-  doc.setFontSize(8);
-  doc.setTextColor(150);
-  doc.text('Yi Pin Shi Fu | HISEM GROUP', pageW / 2, 285, { align: 'center' });
-
-  doc.save(`${customerName}_对账单_${today}.pdf`);
-}
 
 export default function YipinShifuAdminPage() {
   const [cards, setCards] = useState<MealCard[]>([]);
@@ -645,12 +508,13 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{stats.status}</td>
                         <td className="px-4 py-3">
                           {isFirstCard && (
-                            <button
-                              onClick={() => generateStatement(card.customer_name, customerCards)}
+                            <a
+                              href={`/admin/yipinshifu/statement/${encodeURIComponent(card.customer_name)}`}
+                              target="_blank"
                               className="rounded-full bg-stone-700 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-600"
                             >
                               生成对账单
-                            </button>
+                            </a>
                           )}
                         </td>
                       </tr>
