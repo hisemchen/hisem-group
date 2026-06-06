@@ -201,6 +201,9 @@ export default function YipinShifuAdminPage() {
         records: [{ customerName: row.name, mealDate: row.mealDate, mealType: row.mealType, paymentStatus }],
       }),
     });
+    const updated = [...importRows];
+    updated[i] = { ...updated[i], done: true };
+    setImportRows(updated);
     await loadGuests();
     setMessage(`已记录 ${row.name} 为${paymentStatus === 'paid' ? '已付款' : '未付款'}。`);
   }
