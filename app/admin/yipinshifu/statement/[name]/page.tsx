@@ -83,15 +83,20 @@ export default async function StatementPage({ params }: { params: { name: string
           return (
             <div key={card.id} className="card-block" style={{marginBottom:'24px',border:'1px solid #ddd'}}>
               {/* 每页抬头 */}
-              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'2px solid #1a1a1a',paddingBottom:'12px',marginBottom:'12px',padding:'12px 14px 12px 14px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'1px solid #ddd',padding:'12px 14px'}}>
                 <img src="/logo.png" alt="一品食府" style={{width:'45px',height:'45px',objectFit:'contain'}} />
                 <div>
                   <div style={{fontSize:'16px',fontWeight:'700',color:'#1a1a1a'}}>一品食府 · 会员对账单</div>
-                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>客户：{name} · 生成日期：{today}</div>
+                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>生成日期：{today}</div>
                 </div>
                 <div style={{marginLeft:'auto',fontSize:'11px',color:'#666'}}>
                   第 {index + 1} 页 / 共 {customerCards.length + (customerCards.some(c => cardStats(c).left > 0) ? 1 : 0)} 页
                 </div>
+              </div>
+              {/* 客户信息 */}
+              <div style={{padding:'10px 14px',borderBottom:'1px solid #ddd',fontSize:'13px'}}>
+                <span style={{fontWeight:'700',color:'#1a1a1a'}}>客户姓名：{name}</span>
+                <span style={{marginLeft:'24px',color:'#444'}}>会员状态：✓ 会员（持有餐次卡）</span>
               </div>
               <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd'}}>
                 第 {card.card_no} 张卡
@@ -143,15 +148,20 @@ export default async function StatementPage({ params }: { params: { name: string
           return (
             <div style={{marginBottom:'24px',border:'1px solid #ddd'}}>
               {/* 退款页抬头 */}
-              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'2px solid #1a1a1a',paddingBottom:'12px',marginBottom:'12px',padding:'12px 14px 12px 14px'}}>
+              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'1px solid #ddd',padding:'12px 14px'}}>
                 <img src="/logo.png" alt="一品食府" style={{width:'45px',height:'45px',objectFit:'contain'}} />
                 <div>
                   <div style={{fontSize:'16px',fontWeight:'700',color:'#1a1a1a'}}>一品食府 · 会员对账单</div>
-                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>客户：{name} · 生成日期：{today}</div>
+                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>生成日期：{today}</div>
                 </div>
                 <div style={{marginLeft:'auto',fontSize:'11px',color:'#666'}}>
                   第 {customerCards.length + 1} 页 / 共 {customerCards.length + 1} 页
                 </div>
+              </div>
+              {/* 客户信息 */}
+              <div style={{padding:'10px 14px',borderBottom:'1px solid #ddd',fontSize:'13px'}}>
+                <span style={{fontWeight:'700',color:'#1a1a1a'}}>客户姓名：{name}</span>
+                <span style={{marginLeft:'24px',color:'#444'}}>会员状态：✓ 会员（持有餐次卡）</span>
               </div>
               <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd'}}>
                 退款计算
