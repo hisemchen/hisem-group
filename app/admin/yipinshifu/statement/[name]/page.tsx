@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import PrintButton from './PrintButton';
 
 type MealRecord = {
   id: string;
@@ -67,9 +68,7 @@ export default async function StatementPage({ params }: { params: { name: string
           </div>
           <div style={{marginLeft:'auto',textAlign:'right',fontSize:'12px',color:'#666'}}>
             <div>生成日期：{today}</div>
-            <button id="print-top-btn" style={{marginTop:'8px',background:'#1a1a1a',color:'#fff',border:'none',padding:'8px 16px',fontSize:'13px',cursor:'pointer',borderRadius:'4px'}}>
-              🖨️ 打印 / 保存 PDF
-            </button>
+            <PrintButton name={name} today={today} />
           </div>
         </div>
 
@@ -190,11 +189,6 @@ export default async function StatementPage({ params }: { params: { name: string
           );
         })}
 
-        <script dangerouslySetInnerHTML={{ __html: `
-          document.title = decodeURIComponent('${encodeURIComponent(name)}') + '_对账单_' + new Date().toISOString().slice(0,10);
-          var btn = document.getElementById('print-top-btn');
-          if (btn) btn.addEventListener('click', function() { window.print(); });
-        `}} />
       </body>
     </html>
   );
