@@ -51,6 +51,8 @@ export default async function StatementPage({ params }: { params: { name: string
             body { padding: 15px; background: #fff !important; color: #1a1a1a !important; }
             .no-print { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #1a1a1a !important; }
+            .card-block { page-break-after: always; }
+            .card-block:last-of-type { page-break-after: avoid; }
           }
         `}</style>
       </head>
@@ -78,7 +80,7 @@ export default async function StatementPage({ params }: { params: { name: string
           const stats = cardStats(card);
           let left = Number(card.total_meals);
           return (
-            <div key={card.id} style={{marginBottom:'24px',border:'1px solid #ddd'}}>
+            <div key={card.id} className="card-block" style={{marginBottom:'24px',border:'1px solid #ddd'}}>
               <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd'}}>
                 第 {card.card_no} 张卡
               </div>
