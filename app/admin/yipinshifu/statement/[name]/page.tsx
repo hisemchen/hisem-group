@@ -50,6 +50,7 @@ export default async function StatementPage({ params }: { params: { name: string
           @media print {
             body { padding: 15px; background: #fff !important; color: #1a1a1a !important; }
             .no-print { display: none !important; }
+            .main-header { display: none !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color: #1a1a1a !important; }
             .card-block { page-break-after: always; }
             .card-block:last-of-type { page-break-after: avoid; }
@@ -58,7 +59,7 @@ export default async function StatementPage({ params }: { params: { name: string
       </head>
       <body>
         {/* Header */}
-        <div style={{display:'flex',alignItems:'center',gap:'20px',borderBottom:'2px solid #1a1a1a',paddingBottom:'20px',marginBottom:'24px'}}>
+        <div className="main-header" style={{display:'flex',alignItems:'center',gap:'20px',borderBottom:'2px solid #1a1a1a',paddingBottom:'20px',marginBottom:'24px'}}>
           <img src="/logo.png" alt="一品食府" style={{width:'70px',height:'70px',objectFit:'contain'}} />
           <div>
             <div style={{fontSize:'22px',fontWeight:'700',color:'#1a1a1a'}}>一品食府</div>
@@ -76,11 +77,22 @@ export default async function StatementPage({ params }: { params: { name: string
         </div>
 
         {/* Cards */}
-        {customerCards.map((card) => {
+        {customerCards.map((card, index) => {
           const stats = cardStats(card);
           let left = Number(card.total_meals);
           return (
             <div key={card.id} className="card-block" style={{marginBottom:'24px',border:'1px solid #ddd'}}>
+              {/* 每页抬头 */}
+              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'2px solid #1a1a1a',paddingBottom:'12px',marginBottom:'12px',padding:'12px 14px 12px 14px'}}>
+                <img src="/logo.png" alt="一品食府" style={{width:'45px',height:'45px',objectFit:'contain'}} />
+                <div>
+                  <div style={{fontSize:'16px',fontWeight:'700',color:'#1a1a1a'}}>一品食府 · 会员对账单</div>
+                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>客户：{name} · 生成日期：{today}</div>
+                </div>
+                <div style={{marginLeft:'auto',fontSize:'11px',color:'#666'}}>
+                  第 {index + 1} 页 / 共 {customerCards.length + (customerCards.some(c => cardStats(c).left > 0) ? 1 : 0)} 页
+                </div>
+              </div>
               <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd'}}>
                 第 {card.card_no} 张卡
               </div>
@@ -130,6 +142,17 @@ export default async function StatementPage({ params }: { params: { name: string
           const totalRefund = refundCards.reduce((sum, card) => sum + cardStats(card).left * 30, 0);
           return (
             <div style={{marginBottom:'24px',border:'1px solid #ddd'}}>
+              {/* 退款页抬头 */}
+              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'2px solid #1a1a1a',paddingBottom:'12px',marginBottom:'12px',padding:'12px 14px 12px 14px'}}>
+                <img src="/logo.png" alt="一品食府" style={{width:'45px',height:'45px',objectFit:'contain'}} />
+                <div>
+                  <div style={{fontSize:'16px',fontWeight:'700',color:'#1a1a1a'}}>一品食府 · 会员对账单</div>
+                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>客户：{name} · 生成日期：{today}</div>
+                </div>
+                <div style={{marginLeft:'auto',fontSize:'11px',color:'#666'}}>
+                  第 {customerCards.length + 1} 页 / 共 {customerCards.length + 1} 页
+                </div>
+              </div>
               <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd'}}>
                 退款计算
               </div>
