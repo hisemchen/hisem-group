@@ -90,7 +90,7 @@ export default async function StatementPage({ params }: { params: { name: string
                   <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>生成日期：{today}</div>
                 </div>
                 <div style={{marginLeft:'auto',fontSize:'11px',color:'#666'}}>
-                  第 {index + 1} 页 / 共 {customerCards.length + (customerCards.some(c => cardStats(c).left > 0) ? 1 : 0)} 页
+                  第 {index + 1} 页 / 共 {customerCards.length} 页
                 </div>
               </div>
               {/* 客户信息 */}
