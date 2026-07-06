@@ -136,66 +136,50 @@ export default async function StatementPage({ params }: { params: { name: string
               ) : (
                 <div style={{padding:'10px 14px',fontSize:'12px',color:'#999'}}>暂无消费记录</div>
               )}
+
+              {/* 最后一张卡附上退款计算 */}
+              {index === customerCards.length - 1 && (() => {
+                const refundCards = customerCards.filter(c => cardStats(c).left > 0);
+                if (refundCards.length === 0) return null;
+                const totalRefund = refundCards.reduce((sum, c) => sum + cardStats(c).left * 30, 0);
+                return (
+                  <>
+                    <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd',borderTop:'1px solid #ddd',marginTop:'8px'}}>
+                      退款计算
+                    </div>
+                    <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
+                      <thead>
+                        <tr style={{background:'#dcc896'}}>
+                          <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>卡号</th>
+                          <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>剩余次数</th>
+                          <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>单价</th>
+                          <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>应退金额</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {refundCards.map(c => {
+                          const s = cardStats(c);
+                          return (
+                            <tr key={c.id} style={{borderBottom:'1px solid #f0f0f0'}}>
+                              <td style={{padding:'6px 12px',color:'#1a1a1a'}}>第 {c.card_no} 张卡</td>
+                              <td style={{padding:'6px 12px',color:'#1a1a1a'}}>{s.left} 次</td>
+                              <td style={{padding:'6px 12px',color:'#1a1a1a'}}>AED 30 / 次</td>
+                              <td style={{padding:'6px 12px',color:'#1a1a1a'}}>AED {s.left * 30}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr style={{background:'#f5f0dc',fontWeight:'700'}}>
+                          <td colSpan={3} style={{padding:'8px 12px',color:'#1a1a1a'}}>合计应退</td>
+                          <td style={{padding:'8px 12px',color:'#1a1a1a'}}>AED {totalRefund}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </>
+                );
+              })()}
             </div>
           );
         })}
-
-        {/* Refund Summary */}
-        {(() => {
-          const refundCards = customerCards.filter(card => cardStats(card).left > 0);
-          if (refundCards.length === 0) return null;
-          const totalRefund = refundCards.reduce((sum, card) => sum + cardStats(card).left * 30, 0);
-          return (
-            <div style={{marginBottom:'24px',border:'1px solid #ddd'}}>
-              {/* 退款页抬头 */}
-              <div style={{display:'flex',alignItems:'center',gap:'16px',borderBottom:'1px solid #ddd',padding:'12px 14px'}}>
-                <img src="/logo.png" alt="一品食府" style={{width:'45px',height:'45px',objectFit:'contain'}} />
-                <div>
-                  <div style={{fontSize:'16px',fontWeight:'700',color:'#1a1a1a'}}>一品食府 · 会员对账单</div>
-                  <div style={{fontSize:'11px',color:'#666',marginTop:'2px'}}>生成日期：{today}</div>
-                </div>
-                <div style={{marginLeft:'auto',fontSize:'11px',color:'#666'}}>
-                  第 {customerCards.length + 1} 页 / 共 {customerCards.length + 1} 页
-                </div>
-              </div>
-              {/* 客户信息 */}
-              <div style={{padding:'10px 14px',borderBottom:'1px solid #ddd',fontSize:'13px'}}>
-                <span style={{fontWeight:'700',color:'#1a1a1a'}}>客户姓名：{name}</span>
-                <span style={{marginLeft:'24px',color:'#444'}}>会员状态：✓ 会员（持有餐次卡）</span>
-              </div>
-              <div style={{background:'#f5f0dc',padding:'10px 14px',fontSize:'14px',fontWeight:'700',color:'#1a1a1a',borderBottom:'1px solid #ddd'}}>
-                退款计算
-              </div>
-              <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
-                <thead>
-                  <tr style={{background:'#dcc896'}}>
-                    <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>卡号</th>
-                    <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>剩余次数</th>
-                    <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>单价</th>
-                    <th style={{padding:'7px 12px',textAlign:'left',fontWeight:'600',color:'#1a1a1a'}}>应退金额</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {refundCards.map(card => {
-                    const stats = cardStats(card);
-                    return (
-                      <tr key={card.id} style={{borderBottom:'1px solid #f0f0f0'}}>
-                        <td style={{padding:'6px 12px',color:'#1a1a1a'}}>第 {card.card_no} 张卡</td>
-                        <td style={{padding:'6px 12px',color:'#1a1a1a'}}>{stats.left} 次</td>
-                        <td style={{padding:'6px 12px',color:'#1a1a1a'}}>AED 30 / 次</td>
-                        <td style={{padding:'6px 12px',color:'#1a1a1a'}}>AED {stats.left * 30}</td>
-                      </tr>
-                    );
-                  })}
-                  <tr style={{background:'#f5f0dc',fontWeight:'700'}}>
-                    <td colSpan={3} style={{padding:'8px 12px',color:'#1a1a1a'}}>合计应退</td>
-                    <td style={{padding:'8px 12px',color:'#1a1a1a'}}>AED {totalRefund}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          );
-        })()}
 
         {/* Footer */}
         <div style={{marginTop:'40px',borderTop:'1px solid #ddd',paddingTop:'12px',textAlign:'center',fontSize:'11px',color:'#999'}}>
