@@ -181,12 +181,8 @@ export default async function StatementPage({ params }: { params: { name: string
           );
         })}
 
-        {/* Footer */}
-        <div style={{marginTop:'40px',borderTop:'1px solid #ddd',paddingTop:'12px',textAlign:'center',fontSize:'11px',color:'#999'}}>
-          一品食府 | HISEM GROUP
-        </div>
-
         <script dangerouslySetInnerHTML={{ __html: `
+          document.title = '${name}_对账单_' + new Date().toISOString().slice(0,10);
           setTimeout(function() {
             var btn = document.createElement('button');
             btn.textContent = '🖨️ 打印 / 保存 PDF';
