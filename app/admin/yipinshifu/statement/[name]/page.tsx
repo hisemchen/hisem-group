@@ -66,6 +66,18 @@ export default async function StatementPage({ params }: { params: { name: string
             <div style={{fontSize:'13px',color:'#666',marginTop:'4px'}}>会员对账单</div>
           </div>
           <div style={{marginLeft:'auto',textAlign:'right',fontSize:'12px',color:'#666'}}>
+            <div>生成日期：{today}</div>
+            <button id="print-top-btn" className="no-print" style={{marginTop:'8px',background:'#1a1a1a',color:'#fff',border:'none',padding:'8px 16px',fontSize:'13px',cursor:'pointer',borderRadius:'4px'}}>
+              🖨️ 打印 / 保存 PDF
+            </button>
+          </div>
+        </div>
+          <img src="/logo.png" alt="一品食府" style={{width:'70px',height:'70px',objectFit:'contain'}} />
+          <div>
+            <div style={{fontSize:'22px',fontWeight:'700',color:'#1a1a1a'}}>一品食府</div>
+            <div style={{fontSize:'13px',color:'#666',marginTop:'4px'}}>会员对账单</div>
+          </div>
+          <div style={{marginLeft:'auto',textAlign:'right',fontSize:'12px',color:'#666'}}>
             生成日期：{today}
           </div>
         </div>
@@ -183,14 +195,8 @@ export default async function StatementPage({ params }: { params: { name: string
 
         <script dangerouslySetInnerHTML={{ __html: `
           document.title = '${name}_对账单_' + new Date().toISOString().slice(0,10);
-          setTimeout(function() {
-            var btn = document.createElement('button');
-            btn.textContent = '🖨️ 打印 / 保存 PDF';
-            btn.className = 'no-print';
-            btn.style.cssText = 'position:fixed;bottom:30px;right:30px;background:#1a1a1a;color:#fff;border:none;padding:12px 24px;font-size:14px;cursor:pointer;border-radius:4px;z-index:9999;';
-            btn.addEventListener('click', function() { window.print(); });
-            document.body.appendChild(btn);
-          }, 100);
+          var topBtn = document.getElementById('print-top-btn');
+          if (topBtn) topBtn.addEventListener('click', function() { window.print(); });
         `}} />
       </body>
     </html>
