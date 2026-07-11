@@ -376,10 +376,16 @@ export default function YipinShifuAdminPage() {
             <h1 className="text-4xl font-semibold">一品食府会员后台</h1>
             <p className="mt-3 text-stone-300">餐次卡：AED 300 / 10次。每消费一次扣1次，扣完后续卡。</p>
           </div>
-          <button type="button" onClick={loadCards}
-            className="w-fit rounded-full border border-white/20 px-5 py-2 text-sm font-semibold transition hover:bg-white hover:text-stone-950">
-            刷新
-          </button>
+          <div className="flex gap-3">
+            <a href="/admin/inventory"
+              className="w-fit rounded-full border border-white/20 px-5 py-2 text-sm font-semibold transition hover:bg-white hover:text-stone-950">
+              库存管理
+            </a>
+            <button type="button" onClick={loadCards}
+              className="w-fit rounded-full border border-white/20 px-5 py-2 text-sm font-semibold transition hover:bg-white hover:text-stone-950">
+              刷新
+            </button>
+          </div>
         </div>
 
         {message && (
