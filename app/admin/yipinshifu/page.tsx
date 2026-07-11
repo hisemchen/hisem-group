@@ -348,6 +348,24 @@ export default function YipinShifuAdminPage() {
     return map;
   }, [guestRecords]);
 
+  // 待退款总额：未标记已退款、且有剩余次数的卡，剩余次数 × AED 30
+  const pendingRefundTotal = useMemo(
+    () =>
+      cards
+        .filter((card) => !card.refund_paid_at && cardStats(card).left > 0)
+        .reduce((sum, card) => sum + cardStats(card).left * 30, 0),
+    [cards]
+  );
+
+  // 非会员未付款总额
+  const guestUnpaidTotal = useMemo(
+    () =>
+      guestRecords
+        .filter((r) => r.payment_status === 'unpaid')
+        .reduce((sum, r) => sum + Number(r.price_aed || 35), 0),
+    [guestRecords]
+  );
+
   return (
     <main className="min-h-screen bg-stone-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-7xl">
@@ -594,6 +612,10 @@ export default function YipinShifuAdminPage() {
         {/* 会员餐次卡汇总 */}
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">会员餐次卡汇总</h2>
+          <p className="mt-2 text-sm text-stone-300">
+            待退款总额：<span className="font-semibold text-red-400">AED {pendingRefundTotal}</span>
+            <span className="ml-2 text-xs text-stone-500">（未退款卡的剩余次数 × AED 30，已标记退款的不计入）</span>
+          </p>
           <div className="mt-4">
             <input
               type="text"
@@ -692,6 +714,9 @@ export default function YipinShifuAdminPage() {
         {/* 非会员消费汇总 */}
         <section className="mt-10">
           <h2 className="text-2xl font-semibold">非会员消费汇总</h2>
+          <p className="mt-2 text-sm text-stone-300">
+            未付款总额：<span className="font-semibold text-red-400">AED {guestUnpaidTotal}</span>
+          </p>
           <div className="mt-5 overflow-x-auto border border-white/10">
             <table className="w-full min-w-[700px] border-collapse text-left text-sm">
               <thead className="bg-amber-200 text-xs font-semibold uppercase text-stone-950">
