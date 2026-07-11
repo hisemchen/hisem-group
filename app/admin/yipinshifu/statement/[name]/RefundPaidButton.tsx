@@ -33,15 +33,7 @@ export default function RefundPaidButton({
       {receipt && (
         <span style={{ color: '#2e7d32', fontWeight: 700, fontSize: '13px' }}>
           ✓ 已上传凭证
-          
-            className="no-print"
-            href={receipt}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginLeft: '8px', color: '#1a6bb0', fontWeight: 400 }}
-          >
-            查看
-          </a>
+          <a className="no-print" href={receipt} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '8px', color: '#1a6bb0', fontWeight: 400 }}>查看</a>
         </span>
       )}
       <input
