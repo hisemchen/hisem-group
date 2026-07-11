@@ -44,21 +44,31 @@ export default function RefundPaidButton({
         onChange={async (e) => {
           const file = e.target.files?.[0];
           if (!file) return;
+          if (file.size > 4 * 1024 * 1024) {
+            alert('文件超过 4MB，请压缩后再上传（可以截图后上传截图）');
+            e.target.value = '';
+            return;
+          }
           setUploading(true);
           const fd = new FormData();
           fd.append('file', file);
           fd.append('name', name);
-          const res = await fetch('/api/yipinshifu/refund-receipt', {
-            method: 'POST',
-            body: fd,
-          });
-          setUploading(false);
-          e.target.value = '';
-          if (res.ok) {
-            const data = await res.json();
-            setReceipt(data.url);
-          } else {
-            alert('上传失败，请重试');
+          try {
+            const res = await fetch('/api/yipinshifu/refund-receipt', {
+              method: 'POST',
+              body: fd,
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok && data?.url) {
+              setReceipt(data.url);
+            } else {
+              alert('上传失败：' + (data?.error || `HTTP ${res.status}`));
+            }
+          } catch (err) {
+            alert('上传失败：网络错误');
+          } finally {
+            setUploading(false);
+            e.target.value = '';
           }
         }}
       />
