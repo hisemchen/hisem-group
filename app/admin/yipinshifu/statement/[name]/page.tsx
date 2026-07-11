@@ -1,5 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import PrintButton from './PrintButton';
+import RefundPaidButton from './RefundPaidButton';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 type MealRecord = {
   id: string;
@@ -17,6 +21,7 @@ type MealCard = {
   payment_method: string;
   total_meals: number;
   price_aed: number;
+  refund_paid_at: string | null;
   records: MealRecord[];
 };
 
@@ -183,6 +188,9 @@ export default async function StatementPage({ params }: { params: { name: string
                       </tr>
                     </tbody>
                   </table>
+                  <div style={{padding:'10px 14px',textAlign:'right'}}>
+                    <RefundPaidButton name={name} paidAt={card.refund_paid_at} />
+                  </div>
                 </>
               )}
             </div>
