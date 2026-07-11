@@ -22,6 +22,7 @@ type MealCard = {
   total_meals: number;
   price_aed: number;
   refund_paid_at: string | null;
+  refund_receipt_url: string | null;
   records: MealRecord[];
 };
 
@@ -188,8 +189,12 @@ export default async function StatementPage({ params }: { params: { name: string
                       </tr>
                     </tbody>
                   </table>
-                  <div style={{padding:'10px 14px',textAlign:'right'}}>
-                    <RefundPaidButton name={name} paidAt={card.refund_paid_at} />
+                  <div style={{padding:'10px 14px'}}>
+                    <RefundPaidButton
+                      name={name}
+                      paidAt={card.refund_paid_at}
+                      receiptUrl={card.refund_receipt_url}
+                    />
                   </div>
                 </>
               )}
