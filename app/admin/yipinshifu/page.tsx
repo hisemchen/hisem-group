@@ -21,6 +21,8 @@ type MealCard = {
   total_meals: number;
   price_aed: number;
   created_at: string;
+  refund_paid_at: string | null;
+  refund_receipt_url: string | null;
   records: MealRecord[];
 };
 
@@ -614,12 +616,13 @@ export default function YipinShifuAdminPage() {
                   <th className="px-4 py-3">已用</th>
                   <th className="px-4 py-3">剩余</th>
                   <th className="px-4 py-3">状态</th>
+                  <th className="px-4 py-3">退款</th>
                   <th className="px-4 py-3">对账单</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="px-4 py-4 text-stone-300" colSpan={10}>Loading...</td></tr>
+                  <tr><td className="px-4 py-4 text-stone-300" colSpan={11}>Loading...</td></tr>
                 ) : (
                   cards.filter(card => !cardFilter || card.customer_name.toLowerCase().includes(cardFilter.toLowerCase())).map((card) => {
                     const stats = cardStats(card);
@@ -648,6 +651,15 @@ export default function YipinShifuAdminPage() {
                         <td className="px-4 py-3">{stats.used}</td>
                         <td className="px-4 py-3">{stats.left}</td>
                         <td className="px-4 py-3">{stats.status}</td>
+                        <td className="px-4 py-3">
+                          {card.refund_paid_at ? (
+                            <span className="text-green-400">✓ 已退款（{card.refund_paid_at.slice(0, 10)}）</span>
+                          ) : stats.left > 0 ? (
+                            <span className="text-red-400">未退款</span>
+                          ) : (
+                            <span className="text-stone-500">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           {isFirstCard && (
                             <div className="flex gap-2">
